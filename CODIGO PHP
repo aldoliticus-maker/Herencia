@@ -1,0 +1,563 @@
+
+<?php
+
+// ============================================
+// CLASE BASE: ESTUDIANTE
+// ============================================
+
+class Estudiante {
+
+    protected $nombre;
+    protected $matricula;
+    protected $calificacion;
+
+    // Constructor de la clase base.
+    public function __construct($nombre, $matricula, $calificacion) {
+        $this->nombre = $nombre;
+        $this->matricula = $matricula;
+        $this->calificacion = $calificacion;
+    }
+
+    // Determina si el estudiante aprobó o reprobó.
+    public function obtenerEstado() {
+        return $this->calificacion >= 70 ? "Aprobado" : "Reprobado";
+    }
+
+    // Método que será sobrescrito por las clases derivadas.
+    public function obtenerModalidad() {
+        return "No especificada";
+    }
+
+    // Obtiene la información general del estudiante.
+    public function obtenerInformacion() {
+        return [
+            "nombre" => $this->nombre,
+            "matricula" => $this->matricula,
+            "calificacion" => $this->calificacion,
+            "estado" => $this->obtenerEstado(),
+            "modalidad" => $this->obtenerModalidad()
+        ];
+    }
+}
+
+
+// ============================================
+// CLASE DERIVADA: ESTUDIANTE PRESENCIAL
+// ============================================
+
+class EstudiantePresencial extends Estudiante {
+
+    private $aula;
+
+    public function __construct($nombre, $matricula, $calificacion, $aula) {
+
+        // Llama al constructor de la clase base.
+        parent::__construct($nombre, $matricula, $calificacion);
+
+        $this->aula = $aula;
+    }
+
+    // Sobrescribe el método de la clase base.
+    public function obtenerModalidad() {
+        return "Presencial";
+    }
+
+    // Método exclusivo de esta clase.
+    public function obtenerAula() {
+        return $this->aula;
+    }
+
+    public function obtenerInformacion() {
+
+        $datos = parent::obtenerInformacion();
+
+        $datos["detalle"] = "Aula: " . $this->aula;
+
+        return $datos;
+    }
+}
+
+
+// ============================================
+// CLASE DERIVADA: ESTUDIANTE EN LÍNEA
+// ============================================
+
+class EstudianteEnLinea extends Estudiante {
+
+    private $plataforma;
+
+    public function __construct($nombre, $matricula, $calificacion, $plataforma) {
+
+        // Llama al constructor de la clase base.
+        parent::__construct($nombre, $matricula, $calificacion);
+
+        $this->plataforma = $plataforma;
+    }
+
+    // Sobrescribe el método de la clase base.
+    public function obtenerModalidad() {
+        return "En línea";
+    }
+
+    // Método exclusivo de esta clase.
+    public function obtenerPlataforma() {
+        return $this->plataforma;
+    }
+
+    public function obtenerInformacion() {
+
+        $datos = parent::obtenerInformacion();
+
+        $datos["detalle"] = "Plataforma: " . $this->plataforma;
+
+        return $datos;
+    }
+}
+
+
+// ============================================
+// PROGRAMA PRINCIPAL
+// ============================================
+
+// Guarda los registros durante la sesión del navegador.
+session_start();
+
+if (!isset($_SESSION["estudiantes"])) {
+    $_SESSION["estudiantes"] = [];
+}
+
+$mensaje = "";
+
+// Comprueba si se envió el formulario.
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    $nombre = trim($_POST["nombre"] ?? "");
+    $calificacion = $_POST["calificacion"] ?? "";
+    $modalidad = $_POST["modalidad"] ?? "";
+    $detalle = trim($_POST["detalle"] ?? "");
+
+    // Validación de los datos.
+    if (
+        $nombre === "" ||
+        !is_numeric($calificacion) ||
+        $calificacion < 0 ||
+        $calificacion > 100 ||
+        $detalle === ""
+    ) {
+
+        $mensaje = "Completa todos los campos correctamente.";
+
+    } elseif (!in_array($modalidad, ["presencial", "en-linea"], true)) {
+
+        $mensaje = "Selecciona una modalidad válida.";
+
+    } else {
+
+        // Genera una matrícula automáticamente.
+        $matricula = "EST" . date("ymdHis") . random_int(10, 99);
+
+        // Instancia la clase derivada correspondiente.
+        if ($modalidad === "presencial") {
+
+            $estudiante = new EstudiantePresencial(
+                $nombre,
+                $matricula,
+                $calificacion,
+                $detalle
+            );
+
+        } else {
+
+            $estudiante = new EstudianteEnLinea(
+                $nombre,
+                $matricula,
+                $calificacion,
+                $detalle
+            );
+
+        }
+
+        // Obtiene y guarda la información del estudiante.
+        $_SESSION["estudiantes"][] = $estudiante->obtenerInformacion();
+
+        $mensaje = "¡Estudiante registrado correctamente!";
+    }
+}
+
+// Permite limpiar los registros de la sesión.
+if (isset($_POST["limpiar"])) {
+    $_SESSION["estudiantes"] = [];
+    $mensaje = "Se eliminaron los registros de esta sesión.";
+}
+
+// Función para proteger la salida HTML.
+function escapar($valor) {
+    return htmlspecialchars((string)$valor, ENT_QUOTES, "UTF-8");
+}
+
+?>
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Sistema de Gestión de Estudiantes</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 30px 16px;
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .contenedor {
+            max-width: 950px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #1d4ed8;
+            text-align: center;
+        }
+
+        .descripcion {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin: 15px 0 6px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        input:focus, select:focus {
+            outline: 2px solid #93c5fd;
+            border-color: #2563eb;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 7px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        .mensaje {
+            margin: 20px 0;
+            padding: 13px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border-radius: 7px;
+        }
+
+        .tabla-contenedor {
+            overflow-x: auto;
+            margin-top: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+        }
+
+        th, td {
+            padding: 13px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: left;
+        }
+
+        th {
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .aprobado {
+            color: #15803d;
+            font-weight: bold;
+        }
+
+        .reprobado {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .limpiar {
+            background: #dc2626;
+        }
+
+        .limpiar:hover {
+            background: #b91c1c;
+        }
+
+        .nota {
+            margin-top: 25px;
+            color: #64748b;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        @media (max-width: 600px) {
+            .contenedor {
+                padding: 20px;
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="contenedor">
+
+    <h1>Sistema de Gestión de Estudiantes</h1>
+
+    <p class="descripcion">
+        Registro de estudiantes utilizando herencia en PHP.
+        Calificación mínima aprobatoria: 70.
+    </p>
+
+
+    <!-- FORMULARIO DE REGISTRO -->
+
+    <form method="POST" action="">
+
+        <label for="nombre">
+            Nombre del estudiante
+        </label>
+
+        <input
+            type="text"
+            id="nombre"
+            name="nombre"
+            placeholder="Ingresa el nombre completo"
+            required
+        >
+
+
+        <label for="calificacion">
+            Calificación (0 a 100)
+        </label>
+
+        <input
+            type="number"
+            id="calificacion"
+            name="calificacion"
+            min="0"
+            max="100"
+            step="0.1"
+            placeholder="Ej. 85"
+            required
+        >
+
+
+        <label for="modalidad">
+            Modalidad del estudiante
+        </label>
+
+        <select id="modalidad" name="modalidad" required>
+
+            <option value="">
+                Selecciona una modalidad
+            </option>
+
+            <option value="presencial">
+                Presencial
+            </option>
+
+            <option value="en-linea">
+                En línea
+            </option>
+
+        </select>
+
+
+        <label for="detalle" id="detalle-label">
+            Aula o plataforma
+        </label>
+
+        <input
+            type="text"
+            id="detalle"
+            name="detalle"
+            placeholder="Ej. Aula 203 o Moodle"
+            required
+        >
+
+
+        <button type="submit">
+            Registrar estudiante
+        </button>
+
+    </form>
+
+
+    <!-- MENSAJES DEL SISTEMA -->
+
+    <?php if ($mensaje !== ""): ?>
+
+        <div class="mensaje">
+            <?php echo escapar($mensaje); ?>
+        </div>
+
+    <?php endif; ?>
+
+
+    <!-- TABLA DE ESTUDIANTES -->
+
+    <?php if (!empty($_SESSION["estudiantes"])): ?>
+
+        <h2>Estudiantes registrados</h2>
+
+        <div class="tabla-contenedor">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Matrícula</th>
+                        <th>Calificación</th>
+                        <th>Estado</th>
+                        <th>Modalidad</th>
+                        <th>Detalle</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    <?php foreach ($_SESSION["estudiantes"] as $estudiante): ?>
+
+                        <tr>
+
+                            <td>
+                                <?php echo escapar($estudiante["nombre"]); ?>
+                            </td>
+
+                            <td>
+                                <?php echo escapar($estudiante["matricula"]); ?>
+                            </td>
+
+                            <td>
+                                <?php echo escapar($estudiante["calificacion"]); ?>
+                            </td>
+
+                            <td class="<?php echo $estudiante["estado"] === "Aprobado" ? "aprobado" : "reprobado"; ?>">
+                                <?php echo escapar($estudiante["estado"]); ?>
+                            </td>
+
+                            <td>
+                                <?php echo escapar($estudiante["modalidad"]); ?>
+                            </td>
+
+                            <td>
+                                <?php echo escapar($estudiante["detalle"]); ?>
+                            </td>
+
+                        </tr>
+
+                    <?php endforeach; ?>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        <!-- BOTÓN PARA LIMPIAR REGISTROS -->
+
+        <form method="POST" action="">
+
+            <button
+                type="submit"
+                name="limpiar"
+                value="1"
+                class="limpiar"
+            >
+                Limpiar registros
+            </button>
+
+        </form>
+
+    <?php endif; ?>
+
+
+    <p class="nota">
+        Sistema desarrollado en PHP con programación orientada a objetos,
+        herencia y reutilización de código.
+    </p>
+
+</div>
+
+
+<script>
+
+// Actualiza el campo según la modalidad seleccionada.
+
+const modalidad = document.getElementById("modalidad");
+const etiqueta = document.getElementById("detalle-label");
+const detalle = document.getElementById("detalle");
+
+modalidad.addEventListener("change", function () {
+
+    if (this.value === "presencial") {
+
+        etiqueta.textContent = "Aula";
+        detalle.placeholder = "Ej. Aula 203";
+
+    } else if (this.value === "en-linea") {
+
+        etiqueta.textContent = "Plataforma";
+        detalle.placeholder = "Ej. Moodle";
+
+    } else {
+
+        etiqueta.textContent = "Aula o plataforma";
+        detalle.placeholder = "Ej. Aula 203 o Moodle";
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>
